@@ -4,58 +4,6 @@
  * session persistence, api calls, and more.
  * */
 const Alexa = require('ask-sdk-core');
-const https = require("https");
-// const i18n = require('i18next');
-const gql = require('graphql-tag')
-const graphqlRequest = require('graphql-request')
-const  {getRouteIntelligence, getCurrentFreightRates} = require('./connection')
-const helpers = require('./helpers')
-const Stack = helpers.Stack
-
-const getCheapestPrice = (product, destination) => {
-  return getRouteIntelligence()
-  .then(routeIntelligence => {
-    const origin = routeIntelligence.regions.filter(r => r.id == 1)[0]
-    const destination = routeIntelligence.regions.filter(r => r.id == 2)[0] 
-    const calculatedPaths = helpers.calculateAllPaths(origin, destination, routeIntelligence.routes)
-    const variables = {productId: '1', routeIds: calculatedPaths.participatingRoutes.map(r => r.id) }
-
-    return getCurrentFreightRates(variables)
-    .then(currentFreightRates => {
-        const routeMap = currentFreightRates.routes.reduce((acc, route) => {acc[route.id] = route; return acc}, {})
-        const paths = calculatedPaths.paths.map(p => new helpers.Path(p, routeMap))
-        const cheapestCost = Number(paths.map((p, idx) => p.totalCost + idx).sort((a, b) => a - b )[0])
-        return cheapestCost
-      })
-    .catch(err => {console.log(err)})
-
-  })
-  .catch((err, a) => {
-    debugger
-    console.log('error', err)
-  })
-
-}
-
-getCheapestPrice().then(console.log)
-
-const GetFuelDeliveryPrice_Handler = {
-    canHandle(handlerInput) {
-        // return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
-
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'GetFuelDeliveryPrice' ;
-    },
-    handle(handlerInput) {
-        const speakOutput = 'the cheapest price is three fitty';
-
-        return handlerInput.responseBuilder
-            .speak(speakOutput)
-            .reprompt(speakOutput)
-            .getResponse();
-    }
-
-}
 
 const LaunchRequestHandler = {
     canHandle(handlerInput) {
@@ -77,9 +25,7 @@ const HelloWorldIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'HelloWorldIntent';
     },
     handle(handlerInput) {
-        const speakOutput = 'hmm, Hello? What do you want?';
-
-        // getCheapestPrice().then(console.log)
+        const speakOutput = "'ello there, matey!";
 
         return handlerInput.responseBuilder
             .speak(speakOutput)
