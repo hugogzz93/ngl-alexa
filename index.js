@@ -4,6 +4,139 @@
  * session persistence, api calls, and more.
  * */
 const Alexa = require('ask-sdk-core');
+const getSlotValue = Alexa.getSlotValue
+const gql = require('graphql-tag')
+const graphqlRequest = require('graphql-request')
+const helpers = require('./helpers')
+const  {getRouteIntelligence, getCurrentFreightRates} = require('./connection')
+const Stack = helpers.Stack
+
+
+const getCheapestPrice = (product, destination) => {
+  return getRouteIntelligence()
+  .then(routeIntelligence => {
+    const origin = routeIntelligence.regions.filter(r => r.id == 1)[0]
+    const destination = routeIntelligence.regions.filter(r => r.id == 2)[0] 
+    const calculatedPaths = helpers.calculateAllPaths(origin, destination, routeIntelligence.routes)
+    const variables = {productId: '1', routeIds: calculatedPaths.participatingRoutes.map(r => r.id) }
+
+    return getCurrentFreightRates(variables)
+    .then(currentFreightRates => {
+        const routeMap = currentFreightRates.routes.reduce((acc, route) => {acc[route.id] = route; return acc}, {})
+        const paths = calculatedPaths.paths.map(p => new helpers.Path(p, routeMap))
+        const cheapestCost = Number(paths.map((p, idx) => p.totalCost + idx).sort((a, b) => a - b )[0])
+        return cheapestCost
+      })
+    .catch(err => {console.log(err)})
+
+  })
+  .catch((err, a) => {
+    debugger
+    console.log('error', err)
+  })
+
+}
+
+
+const doIt = () => {
+    const price = getCheapestPrice().then(console.log)
+    console.log(price)
+}
+
+doIt()
+
+
+const GetFuelDeliveryPrice_Handler =  {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'GetFuelDeliveryPrice';
+    },
+    async handle(handlerInput) {
+        const product = Alexa.getSlotValue(handlerInput.requestEnvelope, 'product')
+        const city = Alexa.getSlotValue(handlerInput.requestEnvelope, 'city')
+        const cheapestPrice = await getCheapestPrice()
+
+        const speakOutput = `the cheapest price of bringing ${product} to ${city} is ${cheapestPrice}`;
+
+
+        return handlerInput.responseBuilder
+            .speak(speakOutput)
+            .reprompt(speakOutput)
+            .getResponse();
+
+    },
+    oldhandle(handlerInput) {
+        const request = handlerInput.requestEnvelope.request;
+        const responseBuilder = handlerInput.responseBuilder;
+        let sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+
+        let say = 'Hello from GetFuelDeliveryPrice. ';
+
+        let slotStatus = '';
+        let resolvedSlot;
+
+        let slotValues = getSlotValues(request.intent.slots); 
+        // getSlotValues returns .heardAs, .resolved, and .isValidated for each slot, according to request slot status codes ER_SUCCESS_MATCH, ER_SUCCESS_NO_MATCH, or traditional simple request slot without resolutions
+
+        // console.log('***** slotValues: ' +  JSON.stringify(slotValues, null, 2));
+        //   SLOT: product 
+        if (slotValues.product.heardAs && slotValues.product.heardAs !== '') {
+            slotStatus += ' slot product was heard as ' + slotValues.product.heardAs + '. ';
+        } else {
+            slotStatus += 'slot product is empty. ';
+        }
+        if (slotValues.product.ERstatus === 'ER_SUCCESS_MATCH') {
+            slotStatus += 'a valid ';
+            if(slotValues.product.resolved !== slotValues.product.heardAs) {
+                slotStatus += 'synonym for ' + slotValues.product.resolved + '. '; 
+                } else {
+                slotStatus += 'match. '
+            } // else {
+                //
+        }
+        if (slotValues.product.ERstatus === 'ER_SUCCESS_NO_MATCH') {
+            slotStatus += 'which did not match any slot value. ';
+            console.log('***** consider adding "' + slotValues.product.heardAs + '" to the custom slot type used by slot product! '); 
+        }
+
+        if( (slotValues.product.ERstatus === 'ER_SUCCESS_NO_MATCH') ||  (!slotValues.product.heardAs) ) {
+           // slotStatus += 'A few valid values are, ' + sayArray(getExampleSlotValues('GetFuelDeliveryPrice','product'), 'or');
+        }
+        //   SLOT: city 
+        if (slotValues.city.heardAs && slotValues.city.heardAs !== '') {
+            slotStatus += ' slot city was heard as ' + slotValues.city.heardAs + '. ';
+        } else {
+            slotStatus += 'slot city is empty. ';
+        }
+        if (slotValues.city.ERstatus === 'ER_SUCCESS_MATCH') {
+            slotStatus += 'a valid ';
+            if(slotValues.city.resolved !== slotValues.city.heardAs) {
+                slotStatus += 'synonym for ' + slotValues.city.resolved + '. '; 
+                } else {
+                slotStatus += 'match. '
+            } // else {
+                //
+        }
+        if (slotValues.city.ERstatus === 'ER_SUCCESS_NO_MATCH') {
+            slotStatus += 'which did not match any slot value. ';
+            console.log('***** consider adding "' + slotValues.city.heardAs + '" to the custom slot type used by slot city! '); 
+        }
+
+        if( (slotValues.city.ERstatus === 'ER_SUCCESS_NO_MATCH') ||  (!slotValues.city.heardAs) ) {
+           // slotStatus += 'A few valid values are, ' + sayArray(getExampleSlotValues('GetFuelDeliveryPrice','city'), 'or');
+        }
+
+        say += slotStatus;
+
+
+        return handlerInput.responseBuilder
+            .speak(say)
+            .reprompt('try again, ' + say)
+            .getResponse();
+
+
+    },
+};
 
 const LaunchRequestHandler = {
     canHandle(handlerInput) {
@@ -25,7 +158,7 @@ const HelloWorldIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'HelloWorldIntent';
     },
     handle(handlerInput) {
-        const speakOutput = "'ello there, matey!";
+        const speakOutput = "another hello, for test";
 
         return handlerInput.responseBuilder
             .speak(speakOutput)
@@ -144,6 +277,7 @@ const ErrorHandler = {
 exports.handler = Alexa.SkillBuilders.custom()
     .addRequestHandlers(
         LaunchRequestHandler,
+        GetFuelDeliveryPrice_Handler,
         HelloWorldIntentHandler,
         HelpIntentHandler,
         CancelAndStopIntentHandler,

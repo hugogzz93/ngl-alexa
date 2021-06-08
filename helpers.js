@@ -2,12 +2,12 @@ class Stack {
   constructor() {
     this.items = []
   }
-  push = (element) => this.items.push(element)
-  pop = () => this.items.pop()
-  isEmpty = () => this.items.length === 0
-  empty = () => (this.items.length = 0)
-  top = () => this.items[this.items.length - 1]
-  toArray = () => [...this.items]
+  push(element) {return this.items.push(element)}
+  pop() { return this.items.pop()}
+  isEmpty() { return this.items.length === 0 }
+  empty() {return this.items.length == 0}
+  top() { this.items[this.items.length - 1]}
+  toArray() { return [...this.items] }
 }
 
 class Path {

@@ -172,7 +172,7 @@ exports.FETCH_CURRENT_FREIGHT_RATES = gql`
   }
 `
 
-const endpoint = 'http://d944cf64b036.ngrok.io/graphql'
+const endpoint = 'http://8c93f1744ea4.ngrok.io/graphql'
 const client = new graphqlRequest.GraphQLClient(endpoint, {
     headers: {
         auth_token: 'jFXxjRMaH-sa4_-XU-Ja'
