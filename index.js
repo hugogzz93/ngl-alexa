@@ -12,13 +12,14 @@ const  {getRouteIntelligence, getCurrentFreightRates} = require('./connection')
 const Stack = helpers.Stack
 
 
-const getCheapestPrice = (product, destination) => {
+
+const getCheapestPrice = (productId, destinationId) => {
   return getRouteIntelligence()
   .then(routeIntelligence => {
     const origin = routeIntelligence.regions.filter(r => r.id == 1)[0]
-    const destination = routeIntelligence.regions.filter(r => r.id == 2)[0] 
+    const destination = routeIntelligence.regions.filter(r => r.id == destinationId)[0] 
     const calculatedPaths = helpers.calculateAllPaths(origin, destination, routeIntelligence.routes)
-    const variables = {productId: '1', routeIds: calculatedPaths.participatingRoutes.map(r => r.id) }
+    const variables = {productId, routeIds: calculatedPaths.participatingRoutes.map(r => r.id) }
 
     return getCurrentFreightRates(variables)
     .then(currentFreightRates => {
@@ -37,14 +38,18 @@ const getCheapestPrice = (product, destination) => {
 
 }
 
+getCheapestPrice('1', '2').then(console.log)
 
-const doIt = () => {
-    const price = getCheapestPrice().then(console.log)
-    console.log(price)
-}
 
-doIt()
+// const doIt = () => {
+//     const price = getCheapestPrice().then(console.log)
+//     console.log(price)
+// }
 
+// doIt()
+
+
+const getSlotId = (slot) => slot.resolutions.resolutionsPerAuthority[0].values[0].value.id
 
 const GetFuelDeliveryPrice_Handler =  {
     canHandle(handlerInput) {
@@ -52,11 +57,13 @@ const GetFuelDeliveryPrice_Handler =  {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'GetFuelDeliveryPrice';
     },
     async handle(handlerInput) {
-        const product = Alexa.getSlotValue(handlerInput.requestEnvelope, 'product')
-        const city = Alexa.getSlotValue(handlerInput.requestEnvelope, 'city')
-        const cheapestPrice = await getCheapestPrice()
+        const product = Alexa.getSlot(handlerInput.requestEnvelope, 'product')
+        const city = Alexa.getSlot(handlerInput.requestEnvelope, 'city')
+        const cheapestPrice = await getCheapestPrice(getSlotId(product), getSlotId(city))
+        console.log('PRODUCT SLOT\n', product)
+        console.log('CITY SLOT\n', city)
 
-        const speakOutput = `the cheapest price of bringing ${product} to ${city} is ${cheapestPrice}`;
+        const speakOutput = `the cheapest price of bringing ${product.value} to ${city.value} is $${cheapestPrice}`;
 
 
         return handlerInput.responseBuilder
